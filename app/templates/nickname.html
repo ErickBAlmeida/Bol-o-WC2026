@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Entrar — Bolão Copa 2026{% endblock %}
+
+{% block content %}
+<div class="center-card">
+  <h1 class="card-title">Qual é o seu apelido?</h1>
+  <p class="card-sub">Será exibido no ranking. Não precisa de conta.</p>
+
+  <form method="POST" action="/nickname" class="nickname-form">
+    <input
+      type="text"
+      name="nickname"
+      class="nickname-input"
+      placeholder="ex: Ronaldo9"
+      maxlength="50"
+      autofocus
+      required
+    >
+    {% if error %}
+    <p class="field-error">{{ error }}</p>
+    {% endif %}
+    <button type="submit" class="btn-primary">Entrar no Bolão</button>
+  </form>
+</div>
+{% endblock %}

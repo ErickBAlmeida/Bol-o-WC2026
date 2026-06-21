@@ -1,0 +1,148 @@
+from datetime import date, datetime, timezone
+
+import psycopg2.extras
+from flask import Blueprint, redirect, render_template, request, session, url_for
+
+from app.db import get_db
+from app.football_api import get_matches_for_date, parse_kickoff
+from app.scoring import calculate_points
+
+main_bp = Blueprint("main", __name__)
+
+
+def _refresh_matches_in_db(force: bool = False) -> None:
+    matches = get_matches_for_date(force_refresh=force)
+    if not matches:
+        return
+
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            for m in matches:
+                score = m.get("score", {}).get("fullTime", {})
+                kickoff = parse_kickoff(m["utcDate"])
+                cur.execute(
+                    """
+                    INSERT INTO matches (id, home_team, away_team, kickoff_utc, status, home_score, away_score)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (id) DO UPDATE SET
+                        status = EXCLUDED.status,
+                        home_score = EXCLUDED.home_score,
+                        away_score = EXCLUDED.away_score,
+                        last_updated = NOW()
+                    """,
+                    (
+                        m["id"],
+                        m["homeTeam"]["name"],
+                        m["awayTeam"]["name"],
+                        kickoff,
+                        m["status"],
+                        score.get("home"),
+                        score.get("away"),
+                    ),
+                )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _score_finished_matches() -> int:
+    conn = get_db()
+    updated = 0
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT p.id, p.pred_home, p.pred_away, m.home_score, m.away_score
+                FROM predictions p
+                JOIN matches m ON m.id = p.match_id
+                WHERE m.status = 'FINISHED'
+                  AND m.home_score IS NOT NULL
+                  AND p.points IS NULL
+                """
+            )
+            rows = cur.fetchall()
+            for pred_id, ph, pa, rh, ra in rows:
+                pts = calculate_points(ph, pa, rh, ra)
+                cur.execute("UPDATE predictions SET points = %s WHERE id = %s", (pts, pred_id))
+                updated += 1
+        conn.commit()
+    finally:
+        conn.close()
+    return updated
+
+
+@main_bp.route("/")
+def index():
+    if not session.get("nickname"):
+        return redirect(url_for("main.nickname"))
+
+    try:
+        _refresh_matches_in_db()
+    except Exception:
+        pass
+
+    player_id = session.get("player_id")
+    now = datetime.now(timezone.utc)
+
+    conn = get_db()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT m.id, m.home_team, m.away_team, m.kickoff_utc, m.status,
+                       m.home_score, m.away_score,
+                       p.pred_home, p.pred_away, p.points
+                FROM matches m
+                LEFT JOIN predictions p ON p.match_id = m.id AND p.player_id = %s
+                WHERE DATE(m.kickoff_utc) = %s
+                ORDER BY m.kickoff_utc
+                """,
+                (player_id, date.today()),
+            )
+            matches = cur.fetchall()
+    finally:
+        conn.close()
+
+    return render_template("index.html", matches=matches, now=now)
+
+
+@main_bp.route("/nickname", methods=["GET", "POST"])
+def nickname():
+    if request.method == "POST":
+        nick = request.form.get("nickname", "").strip()
+        if not nick or len(nick) > 50:
+            return render_template("nickname.html", error="Apelido inválido (máx 50 caracteres)")
+
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO players (nickname) VALUES (%s)
+                    ON CONFLICT (nickname) DO UPDATE SET nickname = EXCLUDED.nickname
+                    RETURNING id
+                    """,
+                    (nick,),
+                )
+                player_id = cur.fetchone()[0]
+            conn.commit()
+        finally:
+            conn.close()
+
+        session["nickname"] = nick
+        session["player_id"] = player_id
+        return redirect(url_for("main.index"))
+
+    return render_template("nickname.html")
+
+
+@main_bp.route("/admin/sync", methods=["POST"])
+def admin_sync():
+    try:
+        _refresh_matches_in_db(force=True)
+        scored = _score_finished_matches()
+        session["sync_msg"] = f"Sincronizado. {scored} palpite(s) pontuado(s)."
+    except Exception as e:
+        session["sync_msg"] = f"Erro: {e}"
+    return redirect(url_for("main.index"))

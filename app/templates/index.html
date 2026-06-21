@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Jogos de Hoje — Bolão Copa 2026{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Jogos de Hoje</h1>
+  <form method="POST" action="/admin/sync" class="sync-form">
+    <button type="submit" class="btn-sync" title="Atualizar resultados">↻ Sincronizar</button>
+  </form>
+</div>
+
+{% if not matches %}
+<div class="empty-state">
+  <p>Nenhuma partida hoje.</p>
+</div>
+{% else %}
+<div class="match-list">
+  {% for m in matches %}
+  {% set locked = m.kickoff_utc <= now or m.status not in ('SCHEDULED', 'TIMED') %}
+  {% set finished = m.status == 'FINISHED' %}
+
+  <div class="match-card {% if m.status == 'IN_PLAY' or m.status == 'PAUSED' %}match-live{% elif finished %}match-finished{% endif %}">
+
+    <!-- Status badge -->
+    <div class="match-meta">
+      <span class="kickoff-time" data-utc="{{ m.kickoff_utc.isoformat() }}">
+        {{ m.kickoff_utc.strftime('%H:%M') }} UTC
+      </span>
+      {% if m.status == 'IN_PLAY' or m.status == 'PAUSED' %}
+        <span class="badge badge-live">AO VIVO</span>
+      {% elif finished %}
+        <span class="badge badge-finished">ENCERRADO</span>
+      {% elif locked %}
+        <span class="badge badge-locked">BLOQUEADO</span>
+      {% else %}
+        <span class="badge badge-open">ABERTO</span>
+      {% endif %}
+    </div>
+
+    <!-- Teams + score/result -->
+    <div class="match-body">
+      <div class="team home-team">{{ m.home_team }}</div>
+
+      <div class="match-center">
+        {% if finished and m.home_score is not none %}
+          <div class="final-score">
+            <span class="score-num">{{ m.home_score }}</span>
+            <span class="score-sep">×</span>
+            <span class="score-num">{{ m.away_score }}</span>
+          </div>
+        {% elif m.status == 'IN_PLAY' or m.status == 'PAUSED' %}
+          <div class="final-score live-score">
+            <span class="score-num">{{ m.home_score if m.home_score is not none else '?' }}</span>
+            <span class="score-sep">×</span>
+            <span class="score-num">{{ m.away_score if m.away_score is not none else '?' }}</span>
+          </div>
+        {% else %}
+          <span class="vs-label">vs</span>
+        {% endif %}
+      </div>
+
+      <div class="team away-team">{{ m.away_team }}</div>
+    </div>
+
+    <!-- Prediction area -->
+    <div class="prediction-area">
+      {% if locked %}
+        <!-- Show saved prediction (read-only) -->
+        {% if m.pred_home is not none %}
+          <div class="pred-display {% if finished %}pred-scored{% endif %}">
+            <span class="pred-label">Seu palpite:</span>
+            <span class="pred-value">{{ m.pred_home }} × {{ m.pred_away }}</span>
+            {% if finished and m.points is not none %}
+              {% if m.points == 2 %}
+                <span class="points-badge pts-exact">+2 pts</span>
+              {% elif m.points == 1 %}
+                <span class="points-badge pts-outcome">+1 pt</span>
+              {% else %}
+                <span class="points-badge pts-zero">0 pts</span>
+              {% endif %}
+            {% endif %}
+          </div>
+        {% else %}
+          <div class="no-pred">Sem palpite enviado</div>
+        {% endif %}
+      {% else %}
+        <!-- Prediction form -->
+        <form method="POST" action="/predict/{{ m.id }}" class="pred-form">
+          <label class="pred-form-label">Seu palpite:</label>
+          <div class="score-inputs">
+            <input
+              type="number"
+              name="pred_home"
+              class="score-input"
+              min="0"
+              max="99"
+              value="{{ m.pred_home if m.pred_home is not none else '' }}"
+              placeholder="0"
+              required
+            >
+            <span class="input-sep">–</span>
+            <input
+              type="number"
+              name="pred_away"
+              class="score-input"
+              min="0"
+              max="99"
+              value="{{ m.pred_away if m.pred_away is not none else '' }}"
+              placeholder="0"
+              required
+            >
+            <button type="submit" class="btn-submit">
+              {{ 'Atualizar' if m.pred_home is not none else 'Palpitar' }}
+            </button>
+          </div>
+        </form>
+      {% endif %}
+    </div>
+
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

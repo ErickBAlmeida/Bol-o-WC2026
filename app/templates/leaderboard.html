@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Ranking — Bolão Copa 2026{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Ranking</h1>
+</div>
+
+{% if not ranking %}
+<div class="empty-state">Nenhum participante ainda.</div>
+{% else %}
+<div class="leaderboard-wrap">
+  <table class="leaderboard-table">
+    <thead>
+      <tr>
+        <th class="col-rank">#</th>
+        <th class="col-name">Jogador</th>
+        <th class="col-pts">Pontos</th>
+        <th class="col-stat" title="Placar exato (2 pts)">🎯 Exatos</th>
+        <th class="col-stat" title="Resultado certo (1 pt)">✓ Certos</th>
+        <th class="col-stat" title="Erros (0 pts)">✗ Erros</th>
+        <th class="col-stat">Palpites</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in ranking %}
+      <tr class="{% if row.nickname == current_nick %}row-me{% endif %}">
+        <td class="col-rank">
+          {% if loop.index0 == 0 %}<span class="medal gold">1º</span>
+          {% elif loop.index0 == 1 %}<span class="medal silver">2º</span>
+          {% elif loop.index0 == 2 %}<span class="medal bronze">3º</span>
+          {% else %}{{ loop.index }}º
+          {% endif %}
+        </td>
+        <td class="col-name">
+          {{ row.nickname }}
+          {% if row.nickname == current_nick %}<span class="you-tag">você</span>{% endif %}
+        </td>
+        <td class="col-pts">{{ row.total_points }}</td>
+        <td class="col-stat">{{ row.exact_scores }}</td>
+        <td class="col-stat">{{ row.correct_outcomes }}</td>
+        <td class="col-stat">{{ row.wrong }}</td>
+        <td class="col-stat">{{ row.total_predictions }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
