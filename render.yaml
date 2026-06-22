@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: big-ball-world-cup-2026
+    runtime: python
+    buildCommand: pip install -e .
+    startCommand: gunicorn main:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SUPABASE_DB_URL
+        sync: false
+      - key: UR_TOKEN
+        sync: false
