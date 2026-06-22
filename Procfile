@@ -1,1 +1,1 @@
-web: gunicorn main:app
+web: uv run gunicorn main:app
