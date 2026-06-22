@@ -1,19 +1,19 @@
 from datetime import date, datetime, timezone
 
 import psycopg2.extras
-from flask import Blueprint, redirect, render_template, request, session, url_for
+from flask import Blueprint, redirect, render_template, request, session, url_for, flash
 
 from app.db import get_db
-from app.football_api import get_matches_for_date, parse_kickoff
+from app.football_api import get_current_matchday, get_matches_for_matchday, parse_kickoff
 from app.scoring import calculate_points
 
 main_bp = Blueprint("main", __name__)
 
 
-def _refresh_matches_in_db(force: bool = False) -> None:
-    matches = get_matches_for_date(force_refresh=force)
+def _refresh_matches_in_db(force: bool = False) -> int | None:
+    matches, matchday = get_matches_for_matchday(force_refresh=force)
     if not matches:
-        return
+        return None
 
     conn = get_db()
     try:
@@ -23,12 +23,13 @@ def _refresh_matches_in_db(force: bool = False) -> None:
                 kickoff = parse_kickoff(m["utcDate"])
                 cur.execute(
                     """
-                    INSERT INTO matches (id, home_team, away_team, kickoff_utc, status, home_score, away_score)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO matches (id, home_team, away_team, kickoff_utc, status, home_score, away_score, matchday)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (id) DO UPDATE SET
                         status = EXCLUDED.status,
                         home_score = EXCLUDED.home_score,
                         away_score = EXCLUDED.away_score,
+                        matchday = EXCLUDED.matchday,
                         last_updated = NOW()
                     """,
                     (
@@ -39,11 +40,13 @@ def _refresh_matches_in_db(force: bool = False) -> None:
                         m["status"],
                         score.get("home"),
                         score.get("away"),
+                        m.get("matchday"),
                     ),
                 )
         conn.commit()
     finally:
         conn.close()
+    return matchday
 
 
 def _score_finished_matches() -> int:
@@ -77,10 +80,17 @@ def index():
     if not session.get("nickname"):
         return redirect(url_for("main.nickname"))
 
+    matchday = None
     try:
-        _refresh_matches_in_db()
+        matchday = _refresh_matches_in_db()
     except Exception:
         pass
+
+    if matchday is None:
+        try:
+            matchday = get_current_matchday()
+        except Exception:
+            pass
 
     player_id = session.get("player_id")
     now = datetime.now(timezone.utc)
@@ -88,23 +98,37 @@ def index():
     conn = get_db()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                """
-                SELECT m.id, m.home_team, m.away_team, m.kickoff_utc, m.status,
-                       m.home_score, m.away_score,
-                       p.pred_home, p.pred_away, p.points
-                FROM matches m
-                LEFT JOIN predictions p ON p.match_id = m.id AND p.player_id = %s
-                WHERE DATE(m.kickoff_utc) = %s
-                ORDER BY m.kickoff_utc
-                """,
-                (player_id, date.today()),
-            )
+            if matchday is not None:
+                cur.execute(
+                    """
+                    SELECT m.id, m.home_team, m.away_team, m.kickoff_utc, m.status,
+                           m.home_score, m.away_score,
+                           p.pred_home, p.pred_away, p.points
+                    FROM matches m
+                    LEFT JOIN predictions p ON p.match_id = m.id AND p.player_id = %s
+                    WHERE m.matchday = %s
+                    ORDER BY m.kickoff_utc
+                    """,
+                    (player_id, matchday),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT m.id, m.home_team, m.away_team, m.kickoff_utc, m.status,
+                           m.home_score, m.away_score,
+                           p.pred_home, p.pred_away, p.points
+                    FROM matches m
+                    LEFT JOIN predictions p ON p.match_id = m.id AND p.player_id = %s
+                    WHERE DATE(m.kickoff_utc) = %s
+                    ORDER BY m.kickoff_utc
+                    """,
+                    (player_id, date.today()),
+                )
             matches = cur.fetchall()
     finally:
         conn.close()
 
-    return render_template("index.html", matches=matches, now=now)
+    return render_template("index.html", matches=matches, now=now, matchday=matchday)
 
 
 @main_bp.route("/nickname", methods=["GET", "POST"])
@@ -135,6 +159,12 @@ def nickname():
         return redirect(url_for("main.index"))
 
     return render_template("nickname.html")
+
+
+@main_bp.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return redirect(url_for("main.nickname"))
 
 
 @main_bp.route("/admin/sync", methods=["POST"])

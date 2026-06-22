@@ -18,6 +18,9 @@
         <a href="/leaderboard" class="nav-link {% if request.path == '/leaderboard' %}active{% endif %}">Ranking</a>
         {% if session.nickname %}
         <span class="nickname-chip">{{ session.nickname }}</span>
+        <form method="POST" action="/logout" style="display:inline">
+          <button type="submit" class="btn-logout">Sair</button>
+        </form>
         {% endif %}
       </nav>
     </div>

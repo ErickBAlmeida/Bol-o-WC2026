@@ -77,6 +77,21 @@ a { color: inherit; text-decoration: none; }
   border-radius: 20px;
   color: #fff;
 }
+.btn-logout {
+  font-family: var(--font-data);
+  font-size: 0.8rem;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 20px;
+  color: rgba(255,255,255,0.7);
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-logout:hover {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+}
 
 /* ── Main ────────────────────────────────────────────────── */
 .site-main {

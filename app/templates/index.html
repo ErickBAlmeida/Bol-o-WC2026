@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Jogos de Hoje — Bolão Copa 2026{% endblock %}
+{% block title %}{% if matchday %}Rodada {{ matchday }}{% else %}Jogos{% endif %} — Bolão Copa 2026{% endblock %}
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title">Jogos de Hoje</h1>
+  <h1 class="page-title">{% if matchday %}Rodada {{ matchday }}{% else %}Jogos{% endif %}</h1>
   <form method="POST" action="/admin/sync" class="sync-form">
     <button type="submit" class="btn-sync" title="Atualizar resultados">↻ Sincronizar</button>
   </form>
@@ -11,7 +11,7 @@
 
 {% if not matches %}
 <div class="empty-state">
-  <p>Nenhuma partida hoje.</p>
+  <p>Nenhuma partida nesta rodada.</p>
 </div>
 {% else %}
 <div class="match-list">

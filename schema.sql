@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS matches (
     status VARCHAR(20) NOT NULL,
     home_score INTEGER,
     away_score INTEGER,
+    matchday INTEGER,
     last_updated TIMESTAMPTZ DEFAULT NOW()
 );
 
