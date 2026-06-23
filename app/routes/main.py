@@ -83,6 +83,7 @@ def index():
     matchday = None
     try:
         matchday = _refresh_matches_in_db()
+        _score_finished_matches()
     except Exception:
         pass
 
