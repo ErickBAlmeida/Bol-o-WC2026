@@ -6,7 +6,7 @@ document.querySelectorAll('.kickoff-time').forEach(el => {
   }
 });
 
-// Tab between score inputs, Enter submits form
+// Tab between score inputs + AJAX submit with visual feedback
 document.querySelectorAll('.pred-form').forEach(form => {
   const inputs = form.querySelectorAll('.score-input');
   inputs.forEach((input, idx) => {
@@ -16,5 +16,43 @@ document.querySelectorAll('.pred-form').forEach(form => {
         inputs[1].focus();
       }
     });
+  });
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = form.querySelector('.btn-submit');
+    const body = new URLSearchParams(new FormData(form));
+
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    try {
+      const res = await fetch(form.action, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body,
+      });
+
+      if (res.ok) {
+        btn.textContent = '✓ Salvo';
+        btn.classList.add('btn-submit--saved');
+        setTimeout(() => {
+          btn.textContent = 'Atualizar';
+          btn.classList.remove('btn-submit--saved');
+          btn.disabled = false;
+        }, 1800);
+      } else {
+        btn.textContent = 'Erro';
+        btn.classList.add('btn-submit--error');
+        setTimeout(() => {
+          btn.textContent = 'Palpitar';
+          btn.classList.remove('btn-submit--error');
+          btn.disabled = false;
+        }, 2000);
+      }
+    } catch {
+      btn.textContent = 'Erro';
+      btn.disabled = false;
+    }
   });
 });

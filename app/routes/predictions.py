@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from flask import Blueprint, redirect, render_template, request, session, url_for
+from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
 
 from app.db import get_db
 
@@ -47,4 +47,6 @@ def predict(match_id):
     finally:
         conn.close()
 
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": True})
     return redirect(url_for("main.index"))
