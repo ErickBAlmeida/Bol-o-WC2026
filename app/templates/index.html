@@ -15,7 +15,7 @@
 </div>
 {% else %}
 <div class="match-list">
-  {% for m in matches %}
+  {% for m in matches | sort(attribute='kickoff_utc') %}
   {% set locked = m.kickoff_utc <= now or m.status not in ('SCHEDULED', 'TIMED') %}
   {% set finished = m.status == 'FINISHED' %}
 
