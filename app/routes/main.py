@@ -1,5 +1,13 @@
 from datetime import date, datetime, timezone
 
+_WEEKDAYS_PT = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+_MONTHS_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun',
+              'jul', 'ago', 'set', 'out', 'nov', 'dez']
+
+
+def _fmt_day_pt(d: date) -> str:
+    return f"{_WEEKDAYS_PT[d.weekday()]}, {d.day} de {_MONTHS_PT[d.month - 1]}"
+
 import psycopg2.extras
 from flask import Blueprint, redirect, render_template, request, session, url_for, flash
 
@@ -83,6 +91,7 @@ def index():
     matchday = None
     try:
         matchday = _refresh_matches_in_db()
+        _score_finished_matches()
     except Exception:
         pass
 
@@ -128,7 +137,17 @@ def index():
     finally:
         conn.close()
 
-    return render_template("index.html", matches=matches, now=now, matchday=matchday)
+    # Group matches by calendar day, preserving kickoff order from the query
+    matches_by_day: dict[date, list] = {}
+    for m in matches:
+        day = m['kickoff_utc'].date()
+        matches_by_day.setdefault(day, []).append(m)
+
+    days_with_matches = [(_fmt_day_pt(day), day_matches)
+                         for day, day_matches in matches_by_day.items()]
+
+    return render_template("index.html", days_with_matches=days_with_matches,
+                           now=now, matchday=matchday)
 
 
 @main_bp.route("/nickname", methods=["GET", "POST"])
