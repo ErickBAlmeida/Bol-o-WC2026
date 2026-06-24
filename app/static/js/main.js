@@ -34,20 +34,22 @@ document.querySelectorAll('.pred-form').forEach(form => {
       });
 
       if (res.ok) {
-        btn.textContent = '✓ Salvo';
+        btn.classList.remove('btn-submit--new', 'btn-submit--update');
         btn.classList.add('btn-submit--saved');
+        btn.textContent = '✓ Salvo';
         setTimeout(() => {
-          btn.textContent = 'Atualizar';
+          btn.textContent = '✏️ Atualizar';
           btn.classList.remove('btn-submit--saved');
+          btn.classList.add('btn-submit--update');
           btn.disabled = false;
         }, 1800);
       } else {
         btn.textContent = 'Erro';
         btn.classList.add('btn-submit--error');
         setTimeout(() => {
-          btn.textContent = 'Palpitar';
           btn.classList.remove('btn-submit--error');
           btn.disabled = false;
+          btn.textContent = btn.classList.contains('btn-submit--new') ? '⚽ Palpitar' : '✏️ Atualizar';
         }, 2000);
       }
     } catch {

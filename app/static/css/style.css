@@ -172,6 +172,8 @@ a { color: inherit; text-decoration: none; }
   padding: 1rem 1.25rem;
   flex: 0 0 calc((100% - 2rem) / 3);
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
 .match-card.match-live {
@@ -250,6 +252,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Prediction area ─────────────────────────────────────── */
 .prediction-area {
+  margin-top: auto;
   border-top: 1px solid var(--border);
   padding-top: 0.75rem;
 }
@@ -344,6 +347,9 @@ a { color: inherit; text-decoration: none; }
 }
 .btn-submit:hover { opacity: 0.8; }
 .btn-submit:disabled { cursor: default; opacity: 0.7; }
+.btn-submit--new { background: var(--open); }
+.btn-submit--update { background: transparent; color: var(--gold); border: 1.5px solid var(--gold); }
+.btn-submit--update:hover { background: var(--gold); color: #fff; opacity: 1; }
 .btn-submit--saved { background: #22c55e !important; transition: background 0.2s; }
 .btn-submit--error { background: #ef4444 !important; transition: background 0.2s; }
 

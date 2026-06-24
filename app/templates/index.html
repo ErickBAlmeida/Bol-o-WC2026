@@ -110,8 +110,8 @@
                 placeholder="0"
                 required
               >
-              <button type="submit" class="btn-submit">
-                {{ 'Atualizar' if m.pred_home is not none else 'Palpitar' }}
+              <button type="submit" class="btn-submit {% if m.pred_home is not none %}btn-submit--update{% else %}btn-submit--new{% endif %}">
+                {{ '✏️ Atualizar' if m.pred_home is not none else '⚽ Palpitar' }}
               </button>
             </div>
           </form>
