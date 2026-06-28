@@ -1,7 +1,7 @@
 import os
 import time
 import requests
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 COMPETITION = "WC"
 BASE_URL = "https://api.football-data.org/v4"
@@ -48,6 +48,23 @@ def get_matches_for_matchday(matchday: int | None = None, force_refresh: bool = 
     )
     resp.raise_for_status()
     matches = resp.json().get("matches", [])
+
+    # Knockout rounds don't use matchday — fall back to a date window
+    if not matches:
+        today = date.today()
+        resp = requests.get(
+            f"{BASE_URL}/competitions/{COMPETITION}/matches",
+            headers=_headers(),
+            params={
+                "dateFrom": (today - timedelta(days=1)).isoformat(),
+                "dateTo": (today + timedelta(days=10)).isoformat(),
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        matches = resp.json().get("matches", [])
+        matchday = None  # signal: this is a date-range result, not a matchday
+
     _cache[key] = (now, matches)
     return matches, matchday
 

@@ -67,13 +67,21 @@
 
       <!-- Prediction area -->
       <div class="prediction-area">
+        {% set is_knockout = m.stage is not none and m.stage != 'GROUP_STAGE' %}
         {% if locked %}
           {% if m.pred_home is not none %}
             <div class="pred-display {% if finished %}pred-scored{% endif %}">
               <span class="pred-label">Seu palpite:</span>
               <span class="pred-value">{{ m.pred_home }} × {{ m.pred_away }}</span>
+              {% if is_knockout and m.pred_home == m.pred_away and m.tiebreaker %}
+                <span class="pred-tiebreaker">
+                  → {{ m.home_team if m.tiebreaker == 'home' else m.away_team }} avança
+                </span>
+              {% endif %}
               {% if finished and m.points is not none %}
-                {% if m.points == 2 %}
+                {% if m.points >= 3 %}
+                  <span class="points-badge pts-exact">+{{ m.points }} pts</span>
+                {% elif m.points == 2 %}
                   <span class="points-badge pts-exact">+2 pts</span>
                 {% elif m.points == 1 %}
                   <span class="points-badge pts-outcome">+1 pt</span>
@@ -86,7 +94,14 @@
             <div class="no-pred">Sem palpite enviado</div>
           {% endif %}
         {% else %}
-          <form method="POST" action="/predict/{{ m.id }}" class="pred-form">
+          <form
+            method="POST"
+            action="/predict/{{ m.id }}"
+            class="pred-form"
+            data-knockout="{{ 'true' if is_knockout else 'false' }}"
+            data-home="{{ m.home_team }}"
+            data-away="{{ m.away_team }}"
+          >
             <label class="pred-form-label">Seu palpite:</label>
             <div class="score-inputs">
               <input
@@ -114,6 +129,14 @@
                 {{ '✏️ Atualizar' if m.pred_home is not none else '⚽ Palpitar' }}
               </button>
             </div>
+            {% if is_knockout %}
+            <div class="tiebreaker-picker hidden" id="tb-{{ m.id }}">
+              <span class="tb-label">Quem avança?</span>
+              <button type="button" class="tb-btn" data-value="home">{{ m.home_team }}</button>
+              <button type="button" class="tb-btn" data-value="away">{{ m.away_team }}</button>
+              <input type="hidden" name="tiebreaker" value="{{ m.tiebreaker if m.tiebreaker else '' }}">
+            </div>
+            {% endif %}
           </form>
         {% endif %}
       </div>

@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS matches (
     home_score INTEGER,
     away_score INTEGER,
     matchday INTEGER,
+    stage VARCHAR(50),
+    winner VARCHAR(10),
     last_updated TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -22,6 +24,7 @@ CREATE TABLE IF NOT EXISTS predictions (
     match_id INTEGER REFERENCES matches(id),
     pred_home INTEGER NOT NULL,
     pred_away INTEGER NOT NULL,
+    tiebreaker VARCHAR(10),
     points INTEGER,
     submitted_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(player_id, match_id)

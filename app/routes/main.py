@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 _WEEKDAYS_PT = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 _MONTHS_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun',
@@ -27,17 +27,26 @@ def _refresh_matches_in_db(force: bool = False) -> int | None:
     try:
         with conn.cursor() as cur:
             for m in matches:
-                score = m.get("score", {}).get("fullTime", {})
+                score = m.get("score", {})
+                full_time = score.get("fullTime", {})
                 kickoff = parse_kickoff(m["utcDate"])
+                raw_winner = score.get("winner")
+                winner = (
+                    "home" if raw_winner == "HOME_TEAM"
+                    else "away" if raw_winner == "AWAY_TEAM"
+                    else None
+                )
                 cur.execute(
                     """
-                    INSERT INTO matches (id, home_team, away_team, kickoff_utc, status, home_score, away_score, matchday)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO matches (id, home_team, away_team, kickoff_utc, status, home_score, away_score, matchday, stage, winner)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (id) DO UPDATE SET
                         status = EXCLUDED.status,
                         home_score = EXCLUDED.home_score,
                         away_score = EXCLUDED.away_score,
                         matchday = EXCLUDED.matchday,
+                        stage = EXCLUDED.stage,
+                        winner = EXCLUDED.winner,
                         last_updated = NOW()
                     """,
                     (
@@ -46,9 +55,11 @@ def _refresh_matches_in_db(force: bool = False) -> int | None:
                         m["awayTeam"]["name"],
                         kickoff,
                         m["status"],
-                        score.get("home"),
-                        score.get("away"),
+                        full_time.get("home"),
+                        full_time.get("away"),
                         m.get("matchday"),
+                        m.get("stage"),
+                        winner,
                     ),
                 )
         conn.commit()
@@ -64,7 +75,8 @@ def _score_finished_matches() -> int:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT p.id, p.pred_home, p.pred_away, m.home_score, m.away_score
+                SELECT p.id, p.pred_home, p.pred_away, p.tiebreaker,
+                       m.home_score, m.away_score, m.winner
                 FROM predictions p
                 JOIN matches m ON m.id = p.match_id
                 WHERE m.status = 'FINISHED'
@@ -73,8 +85,8 @@ def _score_finished_matches() -> int:
                 """
             )
             rows = cur.fetchall()
-            for pred_id, ph, pa, rh, ra in rows:
-                pts = calculate_points(ph, pa, rh, ra)
+            for pred_id, ph, pa, tb, rh, ra, winner in rows:
+                pts = calculate_points(ph, pa, rh, ra, tb, winner)
                 cur.execute("UPDATE predictions SET points = %s WHERE id = %s", (pts, pred_id))
                 updated += 1
         conn.commit()
@@ -111,8 +123,8 @@ def index():
                 cur.execute(
                     """
                     SELECT m.id, m.home_team, m.away_team, m.kickoff_utc, m.status,
-                           m.home_score, m.away_score,
-                           p.pred_home, p.pred_away, p.points
+                           m.home_score, m.away_score, m.stage, m.winner,
+                           p.pred_home, p.pred_away, p.tiebreaker, p.points
                     FROM matches m
                     LEFT JOIN predictions p ON p.match_id = m.id AND p.player_id = %s
                     WHERE m.matchday = %s
@@ -121,17 +133,18 @@ def index():
                     (player_id, matchday),
                 )
             else:
+                # No matchday (knockout rounds) — show a rolling window around today
                 cur.execute(
                     """
                     SELECT m.id, m.home_team, m.away_team, m.kickoff_utc, m.status,
-                           m.home_score, m.away_score,
-                           p.pred_home, p.pred_away, p.points
+                           m.home_score, m.away_score, m.stage, m.winner,
+                           p.pred_home, p.pred_away, p.tiebreaker, p.points
                     FROM matches m
                     LEFT JOIN predictions p ON p.match_id = m.id AND p.player_id = %s
-                    WHERE DATE(m.kickoff_utc) = %s
+                    WHERE DATE(m.kickoff_utc) BETWEEN %s AND %s
                     ORDER BY m.kickoff_utc
                     """,
-                    (player_id, date.today()),
+                    (player_id, date.today() - timedelta(days=1), date.today() + timedelta(days=10)),
                 )
             matches = cur.fetchall()
     finally:

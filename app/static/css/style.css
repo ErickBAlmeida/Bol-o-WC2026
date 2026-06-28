@@ -278,6 +278,11 @@ a { color: inherit; text-decoration: none; }
   color: var(--muted);
   font-style: italic;
 }
+.pred-tiebreaker {
+  font-size: 0.78rem;
+  color: var(--open);
+  font-style: italic;
+}
 
 /* points badges */
 .points-badge {
@@ -352,6 +357,52 @@ a { color: inherit; text-decoration: none; }
 .btn-submit--update:hover { background: var(--gold); color: #fff; opacity: 1; }
 .btn-submit--saved { background: #22c55e !important; transition: background 0.2s; }
 .btn-submit--error { background: #ef4444 !important; transition: background 0.2s; }
+
+/* ── Tiebreaker picker ───────────────────────────────────── */
+.tiebreaker-picker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--border);
+}
+.hidden { display: none !important; }
+.tb-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.tb-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-family: var(--font-body);
+  font-weight: 500;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tb-btn:hover { border-color: var(--open); color: var(--open); }
+.tb-btn--selected {
+  border-color: var(--open);
+  background: var(--open-bg);
+  color: var(--open);
+}
+.tb-required { animation: shake 0.4s; border-top-color: var(--accent); }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25%       { transform: translateX(-4px); }
+  75%       { transform: translateX(4px); }
+}
 
 /* ── Empty state ─────────────────────────────────────────── */
 .empty-state {
