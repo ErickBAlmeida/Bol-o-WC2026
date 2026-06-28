@@ -9,6 +9,51 @@
 {% if not ranking %}
 <div class="empty-state">Nenhum participante ainda.</div>
 {% else %}
+
+{% if ranking|length >= 1 %}
+<div class="podium">
+
+  {% if ranking|length >= 2 %}
+  <div class="podium-slot">
+    <div class="podium-player">
+      <span class="podium-medal silver">🥈</span>
+      <span class="podium-name {% if ranking[1].nickname == current_nick %}podium-me{% endif %}">
+        {{ ranking[1].nickname }}{% if ranking[1].nickname == current_nick %} <span class="you-tag">você</span>{% endif %}
+      </span>
+      <span class="podium-pts">{{ ranking[1].total_points }} pts</span>
+    </div>
+    <div class="podium-block pb-2nd">2º</div>
+  </div>
+  {% endif %}
+
+  <div class="podium-slot">
+    <div class="podium-player">
+      <span class="podium-medal gold">🥇</span>
+      <span class="podium-name {% if ranking[0].nickname == current_nick %}podium-me{% endif %}">
+        {{ ranking[0].nickname }}{% if ranking[0].nickname == current_nick %} <span class="you-tag">você</span>{% endif %}
+      </span>
+      <span class="podium-pts">{{ ranking[0].total_points }} pts</span>
+    </div>
+    <div class="podium-block pb-1st">1º</div>
+  </div>
+
+  {% if ranking|length >= 3 %}
+  <div class="podium-slot">
+    <div class="podium-player">
+      <span class="podium-medal bronze">🥉</span>
+      <span class="podium-name {% if ranking[2].nickname == current_nick %}podium-me{% endif %}">
+        {{ ranking[2].nickname }}{% if ranking[2].nickname == current_nick %} <span class="you-tag">você</span>{% endif %}
+      </span>
+      <span class="podium-pts">{{ ranking[2].total_points }} pts</span>
+    </div>
+    <div class="podium-block pb-3rd">3º</div>
+  </div>
+  {% endif %}
+
+</div>
+{% endif %}
+
+{% if ranking|length > 3 %}
 <div class="leaderboard-wrap">
   <table class="leaderboard-table">
     <thead>
@@ -23,15 +68,9 @@
       </tr>
     </thead>
     <tbody>
-      {% for row in ranking %}
+      {% for row in ranking[3:] %}
       <tr class="{% if row.nickname == current_nick %}row-me{% endif %}">
-        <td class="col-rank">
-          {% if loop.index0 == 0 %}<span class="medal gold">1º</span>
-          {% elif loop.index0 == 1 %}<span class="medal silver">2º</span>
-          {% elif loop.index0 == 2 %}<span class="medal bronze">3º</span>
-          {% else %}{{ loop.index }}º
-          {% endif %}
-        </td>
+        <td class="col-rank">{{ loop.index + 3 }}º</td>
         <td class="col-name">
           {{ row.nickname }}
           {% if row.nickname == current_nick %}<span class="you-tag">você</span>{% endif %}
@@ -46,5 +85,7 @@
     </tbody>
   </table>
 </div>
+{% endif %}
+
 {% endif %}
 {% endblock %}

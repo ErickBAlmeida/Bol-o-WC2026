@@ -452,6 +452,65 @@ a { color: inherit; text-decoration: none; }
 .btn-primary:hover { opacity: 0.8; }
 
 /* ── Leaderboard ─────────────────────────────────────────── */
+/* ── Podium ──────────────────────────────────────────────── */
+.podium {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 1.5rem 0 2rem;
+}
+
+.podium-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  max-width: 160px;
+}
+
+.podium-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding-bottom: 0.6rem;
+  text-align: center;
+}
+
+.podium-medal { font-size: 1.6rem; line-height: 1; }
+
+.podium-name {
+  font-weight: 700;
+  font-size: 0.88rem;
+  word-break: break-word;
+}
+.podium-name.podium-me { color: var(--accent); }
+
+.podium-pts {
+  font-family: var(--font-data);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--gold);
+}
+
+.podium-block {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-data);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #fff;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.pb-1st { height: 88px; background: linear-gradient(160deg, #C9A227, #96780A); }
+.pb-2nd { height: 62px; background: linear-gradient(160deg, #8A9BB0, #586070); }
+.pb-3rd { height: 44px; background: linear-gradient(160deg, #A07060, #6B3A28); }
+
+/* ── Leaderboard table ───────────────────────────────────── */
 .leaderboard-wrap { overflow-x: auto; }
 
 .leaderboard-table {
