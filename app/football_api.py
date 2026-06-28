@@ -1,11 +1,13 @@
 import os
 import time
 import requests
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 COMPETITION = "WC"
 BASE_URL = "https://api.football-data.org/v4"
 _cache: dict = {}
+
+KNOCKOUT_STAGES = ["LAST_32", "LAST_16", "QUARTER_FINALS", "SEMI_FINALS", "THIRD_PLACE", "FINAL"]
 
 
 def _headers() -> dict:
@@ -30,7 +32,26 @@ def get_current_matchday(force_refresh: bool = False) -> int:
     return matchday
 
 
-def get_matches_for_matchday(matchday: int | None = None, force_refresh: bool = False) -> tuple[list, int]:
+def get_matches_for_stage(stage: str, force_refresh: bool = False) -> list:
+    key = f"stage_{stage}"
+    now = time.time()
+
+    if not force_refresh and key in _cache and now - _cache[key][0] < 300:
+        return _cache[key][1]
+
+    resp = requests.get(
+        f"{BASE_URL}/competitions/{COMPETITION}/matches",
+        headers=_headers(),
+        params={"stage": stage},
+        timeout=10,
+    )
+    resp.raise_for_status()
+    matches = resp.json().get("matches", [])
+    _cache[key] = (now, matches)
+    return matches
+
+
+def get_matches_for_matchday(matchday: int | None = None, force_refresh: bool = False) -> tuple[list, int | None, str | None]:
     if matchday is None:
         matchday = get_current_matchday(force_refresh=force_refresh)
 
@@ -38,7 +59,7 @@ def get_matches_for_matchday(matchday: int | None = None, force_refresh: bool = 
     now = time.time()
 
     if not force_refresh and key in _cache and now - _cache[key][0] < 300:
-        return _cache[key][1], matchday
+        return _cache[key][1], matchday, None
 
     resp = requests.get(
         f"{BASE_URL}/competitions/{COMPETITION}/matches",
@@ -49,30 +70,17 @@ def get_matches_for_matchday(matchday: int | None = None, force_refresh: bool = 
     resp.raise_for_status()
     matches = resp.json().get("matches", [])
 
-    # Fall back to a date window when:
-    # - matchday returned nothing (knockout rounds don't use matchday), OR
-    # - all returned matches are already FINISHED (API stuck on last group-stage matchday)
-    all_finished = matches and all(m.get("status") == "FINISHED" for m in matches)
+    # When group-stage matchday is empty or fully finished, find the active knockout stage
+    all_finished = bool(matches) and all(m.get("status") == "FINISHED" for m in matches)
     if not matches or all_finished:
-        today = date.today()
-        resp = requests.get(
-            f"{BASE_URL}/competitions/{COMPETITION}/matches",
-            headers=_headers(),
-            params={
-                "dateFrom": (today - timedelta(days=1)).isoformat(),
-                "dateTo": (today + timedelta(days=10)).isoformat(),
-            },
-            timeout=10,
-        )
-        resp.raise_for_status()
-        upcoming = resp.json().get("matches", [])
-        # Only switch to date-range result if it contains non-finished games
-        if upcoming and not all(m.get("status") == "FINISHED" for m in upcoming):
-            matches = upcoming
-            matchday = None  # signal: this is a date-range result, not a matchday
+        for stage in KNOCKOUT_STAGES:
+            ko_matches = get_matches_for_stage(stage, force_refresh=force_refresh)
+            if ko_matches and not all(m.get("status") == "FINISHED" for m in ko_matches):
+                _cache[key] = (now, ko_matches)
+                return ko_matches, None, stage
 
     _cache[key] = (now, matches)
-    return matches, matchday
+    return matches, matchday, None
 
 
 def parse_kickoff(utc_str: str) -> datetime:

@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 
 _WEEKDAYS_PT = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 _MONTHS_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun',
@@ -18,10 +18,10 @@ from app.scoring import calculate_points
 main_bp = Blueprint("main", __name__)
 
 
-def _refresh_matches_in_db(force: bool = False) -> int | None:
-    matches, matchday = get_matches_for_matchday(force_refresh=force)
+def _refresh_matches_in_db(force: bool = False) -> tuple[int | None, str | None]:
+    matches, matchday, stage = get_matches_for_matchday(force_refresh=force)
     if not matches:
-        return None
+        return None, None
 
     conn = get_db()
     try:
@@ -69,7 +69,7 @@ def _refresh_matches_in_db(force: bool = False) -> int | None:
         conn.commit()
     finally:
         conn.close()
-    return matchday
+    return matchday, stage
 
 
 def _score_finished_matches() -> int:
@@ -105,13 +105,14 @@ def index():
         return redirect(url_for("main.nickname"))
 
     matchday = None
+    stage = None
     try:
-        matchday = _refresh_matches_in_db()
+        matchday, stage = _refresh_matches_in_db()
         _score_finished_matches()
     except Exception:
         pass
 
-    if matchday is None:
+    if matchday is None and stage is None:
         try:
             matchday = get_current_matchday()
         except Exception:
@@ -136,8 +137,7 @@ def index():
                     """,
                     (player_id, matchday),
                 )
-            else:
-                # No matchday (knockout rounds) — show a rolling window around today
+            elif stage is not None:
                 cur.execute(
                     """
                     SELECT m.id, m.home_team, m.away_team, m.kickoff_utc, m.status,
@@ -145,10 +145,23 @@ def index():
                            p.pred_home, p.pred_away, p.tiebreaker, p.points
                     FROM matches m
                     LEFT JOIN predictions p ON p.match_id = m.id AND p.player_id = %s
-                    WHERE DATE(m.kickoff_utc) BETWEEN %s AND %s
+                    WHERE m.stage = %s
                     ORDER BY m.kickoff_utc
                     """,
-                    (player_id, date.today() - timedelta(days=1), date.today() + timedelta(days=10)),
+                    (player_id, stage),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT m.id, m.home_team, m.away_team, m.kickoff_utc, m.status,
+                           m.home_score, m.away_score, m.stage, m.winner,
+                           p.pred_home, p.pred_away, p.tiebreaker, p.points
+                    FROM matches m
+                    LEFT JOIN predictions p ON p.match_id = m.id AND p.player_id = %s
+                    WHERE DATE(m.kickoff_utc) = %s
+                    ORDER BY m.kickoff_utc
+                    """,
+                    (player_id, date.today()),
                 )
             matches = cur.fetchall()
     finally:
@@ -163,8 +176,18 @@ def index():
     days_with_matches = [(_fmt_day_pt(day), day_matches)
                          for day, day_matches in matches_by_day.items()]
 
+    _STAGE_LABELS = {
+        "LAST_32": "Rodada de 32",
+        "LAST_16": "Oitavas de Final",
+        "QUARTER_FINALS": "Quartas de Final",
+        "SEMI_FINALS": "Semifinais",
+        "THIRD_PLACE": "Disputa do 3º Lugar",
+        "FINAL": "Final",
+    }
+    stage_label = _STAGE_LABELS.get(stage) if stage else None
+
     return render_template("index.html", days_with_matches=days_with_matches,
-                           now=now, matchday=matchday)
+                           now=now, matchday=matchday, stage_label=stage_label)
 
 
 @main_bp.route("/nickname", methods=["GET", "POST"])
