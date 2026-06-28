@@ -27,6 +27,10 @@ def _refresh_matches_in_db(force: bool = False) -> int | None:
     try:
         with conn.cursor() as cur:
             for m in matches:
+                # Skip matches where teams haven't been determined yet
+                if not m.get("homeTeam", {}).get("name") or not m.get("awayTeam", {}).get("name"):
+                    continue
+
                 score = m.get("score", {})
                 full_time = score.get("fullTime", {})
                 kickoff = parse_kickoff(m["utcDate"])
