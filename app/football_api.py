@@ -49,8 +49,11 @@ def get_matches_for_matchday(matchday: int | None = None, force_refresh: bool = 
     resp.raise_for_status()
     matches = resp.json().get("matches", [])
 
-    # Knockout rounds don't use matchday — fall back to a date window
-    if not matches:
+    # Fall back to a date window when:
+    # - matchday returned nothing (knockout rounds don't use matchday), OR
+    # - all returned matches are already FINISHED (API stuck on last group-stage matchday)
+    all_finished = matches and all(m.get("status") == "FINISHED" for m in matches)
+    if not matches or all_finished:
         today = date.today()
         resp = requests.get(
             f"{BASE_URL}/competitions/{COMPETITION}/matches",
@@ -62,8 +65,11 @@ def get_matches_for_matchday(matchday: int | None = None, force_refresh: bool = 
             timeout=10,
         )
         resp.raise_for_status()
-        matches = resp.json().get("matches", [])
-        matchday = None  # signal: this is a date-range result, not a matchday
+        upcoming = resp.json().get("matches", [])
+        # Only switch to date-range result if it contains non-finished games
+        if upcoming and not all(m.get("status") == "FINISHED" for m in upcoming):
+            matches = upcoming
+            matchday = None  # signal: this is a date-range result, not a matchday
 
     _cache[key] = (now, matches)
     return matches, matchday
