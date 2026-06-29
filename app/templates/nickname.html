@@ -4,7 +4,7 @@
 {% block content %}
 <div class="center-card">
   <h1 class="card-title">Qual é o seu apelido?</h1>
-  <p class="card-sub">Será exibido no ranking. Não precisa de conta.</p>
+  <p class="card-sub">Crie um PIN de 4 dígitos no primeiro acesso. Nas próximas vezes use o mesmo PIN.</p>
 
   <form method="POST" action="/nickname" class="nickname-form">
     <input
@@ -14,6 +14,17 @@
       placeholder="ex: Ronaldo9"
       maxlength="50"
       autofocus
+      required
+      value="{{ nickname or '' }}"
+    >
+    <input
+      type="password"
+      name="pin"
+      class="nickname-input"
+      placeholder="PIN de 4 dígitos"
+      maxlength="4"
+      inputmode="numeric"
+      pattern="\d{4}"
       required
     >
     {% if error %}

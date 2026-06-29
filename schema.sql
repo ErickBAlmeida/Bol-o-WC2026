@@ -1,8 +1,10 @@
 CREATE TABLE IF NOT EXISTS players (
     id SERIAL PRIMARY KEY,
-    nickname VARCHAR(50) UNIQUE NOT NULL,
+    nickname VARCHAR(50) NOT NULL,
+    pin VARCHAR(4),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+CREATE UNIQUE INDEX IF NOT EXISTS players_nickname_lower_idx ON players (LOWER(nickname));
 
 CREATE TABLE IF NOT EXISTS matches (
     id INTEGER PRIMARY KEY,

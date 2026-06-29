@@ -194,26 +194,43 @@ def index():
 def nickname():
     if request.method == "POST":
         nick = request.form.get("nickname", "").strip()
+        pin = request.form.get("pin", "").strip()
+
         if not nick or len(nick) > 50:
             return render_template("nickname.html", error="Apelido inválido (máx 50 caracteres)")
+        if not pin.isdigit() or len(pin) != 4:
+            return render_template("nickname.html", error="PIN deve ter exatamente 4 números", nickname=nick)
 
         conn = get_db()
         try:
             with conn.cursor() as cur:
                 cur.execute(
-                    """
-                    INSERT INTO players (nickname) VALUES (%s)
-                    ON CONFLICT (nickname) DO UPDATE SET nickname = EXCLUDED.nickname
-                    RETURNING id
-                    """,
+                    "SELECT id, nickname, pin FROM players WHERE LOWER(nickname) = LOWER(%s)",
                     (nick,),
                 )
-                player_id = cur.fetchone()[0]
+                row = cur.fetchone()
+
+                if row is None:
+                    # Novo usuário — cria com o PIN fornecido
+                    cur.execute(
+                        "INSERT INTO players (nickname, pin) VALUES (%s, %s) RETURNING id",
+                        (nick, pin),
+                    )
+                    player_id = cur.fetchone()[0]
+                    display_nick = nick
+                else:
+                    player_id, display_nick, stored_pin = row
+                    if stored_pin is None:
+                        # Usuário antigo sem PIN — define agora
+                        cur.execute("UPDATE players SET pin = %s WHERE id = %s", (pin, player_id))
+                    elif stored_pin != pin:
+                        return render_template("nickname.html", error="PIN incorreto", nickname=nick)
+
             conn.commit()
         finally:
             conn.close()
 
-        session["nickname"] = nick
+        session["nickname"] = display_nick
         session["player_id"] = player_id
         return redirect(url_for("main.index"))
 
