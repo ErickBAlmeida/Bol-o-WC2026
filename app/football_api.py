@@ -59,7 +59,8 @@ def get_matches_for_matchday(matchday: int | None = None, force_refresh: bool = 
     now = time.time()
 
     if not force_refresh and key in _cache and now - _cache[key][0] < 300:
-        return _cache[key][1], matchday, None
+        cached_matches, cached_matchday, cached_stage = _cache[key][1]
+        return cached_matches, cached_matchday, cached_stage
 
     resp = requests.get(
         f"{BASE_URL}/competitions/{COMPETITION}/matches",
@@ -76,10 +77,10 @@ def get_matches_for_matchday(matchday: int | None = None, force_refresh: bool = 
         for stage in KNOCKOUT_STAGES:
             ko_matches = get_matches_for_stage(stage, force_refresh=force_refresh)
             if ko_matches and not all(m.get("status") == "FINISHED" for m in ko_matches):
-                _cache[key] = (now, ko_matches)
+                _cache[key] = (now, (ko_matches, None, stage))
                 return ko_matches, None, stage
 
-    _cache[key] = (now, matches)
+    _cache[key] = (now, (matches, matchday, None))
     return matches, matchday, None
 
 
